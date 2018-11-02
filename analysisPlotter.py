@@ -8,12 +8,12 @@ from scipy import stats
 # Remove outliers using z-score
 # Receives list of all data which shall be filtered
 # Returns an index list
-def removeOutliers(datum):
+def removeOutliers(datum, zscore=3):
 
     intersection = range(len(datum[0]))
     for data in datum:
         z = np.abs(stats.zscore(data))
-        idx = np.where(z < 3)
+        idx = np.where(z < zscore)
         intersection = np.intersect1d(intersection,idx)
 
     return intersection
@@ -30,7 +30,7 @@ def plotAscending(x,y):
     x = x[idx]
     y = y[idx]
     order = x.argsort()
-    ax1.plot(x[order],y[order])
+    ax1.scatter(x[order],y[order])
 
 if __name__ == '__main__':
 
