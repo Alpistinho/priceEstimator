@@ -13,204 +13,184 @@ import analysisPlotter
 
 def outputResult(outfile):
 
-    with open(outfile , 'w') as f:
-        f.write('Id,preco')
+	with open(outfile , 'w') as f:
+		f.write('Id,preco')
 
 def rmspe(correct, prediction):
-    length = np.min([len(correct),len(prediction)])
-    totalError = 0
-    errors = []
+	length = np.min([len(correct),len(prediction)])
+	totalError = 0
+	errors = []
 
-    for c, p in zip(correct, prediction):
-        error = ((p - c)/p)**2
-        totalError += error
-        errors.append(error)
-    totalError = np.sqrt(totalError/length)
-    return totalError, errors
-    
+	for c, p in zip(correct, prediction):
+		error = ((p - c)/p)**2
+		totalError += error
+		errors.append(error)
+	totalError = np.sqrt(totalError/length)
+	return totalError, errors
+	
 def printResults(results, print_coefs=False):
-    for key in results.keys():
-        print()
-        print(key)
-        if print_coefs:
-            print(results[key]['coef'])
-        print('\nDesempenho no conjunto de treinamento:')
-        print('RMSPE = %.3f' % results[key]['rmspe_train'])
+	for key in results.keys():
+		print()
+		print(key)
+		if print_coefs:
+			print(results[key]['coef'])
+		print('\nDesempenho no conjunto de treinamento:')
+		print('RMSPE = %.3f' % results[key]['rmspe_train'])
 
-        print('\nDesempenho no conjunto de teste:')
-        print('RMSPE = %.3f' % results[key]['rmspe_test'])
+		print('\nDesempenho no conjunto de teste:')
+		print('RMSPE = %.3f' % results[key]['rmspe_test'])
 
 def kFoldCrossValidation(x, y, predictor, splits = 10):
-    kf = KFold(n_splits=splits, shuffle=True)
-    kf.get_n_splits(x)
-    i = 0
-    results = {}
+	kf = KFold(n_splits=splits, shuffle=True)
+	kf.get_n_splits(x)
+	i = 0
+	results = {}
 
-    train_error = 0
-    test_error = 0
-    for train_index, test_index in kf.split(x):
-        x_train = x[train_index]
-        y_train = y[train_index]
-        x_test = x[test_index]
-        y_test = y[test_index]
-        predictor.fit(x_train, y_train)
-        y_pred_train = predictor.predict(x_train)
-        y_pred_test = predictor.predict(x_test)
-        rmspe_train, errors_train = rmspe(y_train, y_pred_train)
-        rmspe_test, errors_test = rmspe(y_test , y_pred_test)
+	train_error = 0
+	test_error = 0
+	for train_index, test_index in kf.split(x):
+		x_train = x[train_index]
+		y_train = y[train_index]
+		x_test = x[test_index]
+		y_test = y[test_index]
+		predictor.fit(x_train, y_train)
+		y_pred_train = predictor.predict(x_train)
+		y_pred_test = predictor.predict(x_test)
+		rmspe_train, errors_train = rmspe(y_train, y_pred_train)
+		rmspe_test, errors_test = rmspe(y_test , y_pred_test)
 
-        train_error += rmspe_train
-        test_error += rmspe_test
-        
-        i = i + 1
-        results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
+		train_error += rmspe_train
+		test_error += rmspe_test
+		
+		i = i + 1
+		results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
 
-    return results, train_error/splits, test_error/splits
+	return results, train_error/splits, test_error/splits
 
 def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
-    
+	pd.options.mode.chained_assignment = None
 
-    # input data
-    train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
+	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
 
-    # Remove entries with outlier values on the preco column
-    if remove_outliers:
-        train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (4*train_dataset.preco.std())]
+	# Remove entries with outlier values on the preco column
+	if remove_outliers:
+		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (4*train_dataset.preco.std())]
 
-    x = train_dataset.iloc[:,1:-1].values
-    # output data
-    y = train_dataset['preco'].values
+	# output data
+	y = train_dataset['preco'].values
+	# Remove columns not used in training
+	x_dataset = train_dataset.drop(['preco'], axis=1, inplace=False)
+	
+	if test_dataset is not None:
+		test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
+		complete_dataset = x_dataset.append(test_dataset)
+	else:
+		complete_dataset = x_dataset
 
-    # An label encoder for each label to be encoded
-    labelEncoder0 = LabelEncoder()
-    labelEncoder1 = LabelEncoder()
-    labelEncoder2 = LabelEncoder()
-    
-    
-    
-    if test_dataset is not None:
-        test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
-        x_test = test_dataset.iloc[:,1:-1].values
+	tipoCategories = complete_dataset.tipo.unique()
+	bairroCategories = complete_dataset.bairro.unique()
+	tipoVendedorCategories = complete_dataset.tipo_vendedor.unique()
 
-        # Fit labels using both the training and test values to avoid missing any labels
-        
-        labels0 = np.hstack((x[:,0], x_test[:,0]))
-        labels1 = np.hstack((x[:,1], x_test[:,1]))
-        labels2 = np.hstack((x[:,2], x_test[:,2]))
+	
+	# Do one hot encoding on the categorical columns
+	x_dataset['tipo'] = x_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
+	x_dataset['bairro'] = x_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+	x_dataset['tipo_vendedor'] = x_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 
-        labelEncoder0.fit(labels0)
-        labelEncoder1.fit(labels1)
-        labelEncoder2.fit(labels2)
+	x_dataset = pd.get_dummies(x_dataset)
+	print(x_dataset.columns)
+	# input data
+	x = x_dataset.iloc[:, 1:].values
 
-        x_test[:,0] = labelEncoder0.transform(x_test[:,0])
-        x_test[:,1] = labelEncoder1.transform(x_test[:,1])
-        x_test[:,2] = labelEncoder2.transform(x_test[:,2])
 
-        print(labelEncoder1.transform(labels1))
-        print(np.max(labelEncoder0.transform(labels0)))
-        print(np.max(labelEncoder1.transform(labels1)))
-        print(np.max(labelEncoder2.transform(labels2)))
-        print(labelEncoder0.classes_)
-        # Create categories explicitely in order to preserve number of columns accross train and test data
-        category0 = np.arange(np.max(labelEncoder0.transform(labels0)))
-        category1 = np.arange(np.max(labelEncoder1.transform(labels1)))
-        category2 = np.arange(np.max(labelEncoder2.transform(labels2)))
-        print(category0)
-        print(category1)
-        print(category2)
-        oneHotEncoder = OneHotEncoder(categories=[category0, category1, category2])
+	if test_dataset is not None:
+		
+		test_dataset['tipo'] = test_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
+		test_dataset['bairro'] = test_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+		test_dataset['tipo_vendedor'] = test_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
+		
+		test_dataset = pd.get_dummies(test_dataset)
 
-        x_test = oneHotEncoder.fit_transform(x_test).toarray()
-        print(oneHotEncoder.categories_)
-    else:
-        labelEncoder0.fit(x[:,0])
-        labelEncoder1.fit(x[:,1])
-        labelEncoder2.fit(x[:,2])
+		x_test = test_dataset.iloc[:,1:].values
+		print(test_dataset.columns)
+		print(x.shape, x_test.shape, y.shape)
+		return x, x_test, y
 
-    x[:,0] = labelEncoder0.transform(x[:,0])
-    x[:,1] = labelEncoder1.transform(x[:,1])
-    x[:,2] = labelEncoder2.transform(x[:,2])
-
-    
-    x = oneHotEncoder.fit_transform(x).toarray()
-
-    if test_dataset is not None:
-        print(x.shape, x_test.shape, y.shape)
-        return x, x_test, y
-    else:
-        x_train, x_test, y_train, y_test = train_test_split(
-                x, 
-                y, 
-                test_size = 0.9 #,
-                #random_state = 2018
-        )
-        return x, y, x_train, x_test, y_train, y_test
+	else:
+		x_train, x_test, y_train, y_test = train_test_split(
+				x, 
+				y, 
+				test_size = 0.9 #,
+				#random_state = 2018
+		)
+		return x, y, x_train, x_test, y_train, y_test
 
 if __name__ == '__main__':
-    print(sys.argv)
-    if len(sys.argv) == 1: 
-        print('Using default dataset')
-        dataset = pd.read_csv('data/train.csv')
-        x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
-    elif len(sys.argv) == 2: 
-        print('Using dataset {}'.format(sys.argv[1]))
-        dataset = pd.read_csv(sys.argv[1])
-        x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
-    elif len(sys.argv) == 3: 
-        print('Using dataset {} for training'.format(sys.argv[1]))
-        print('Using dataset {} for testing'.format(sys.argv[2]))
-        dataset = pd.read_csv(sys.argv[1])
-        test_dataset = pd.read_csv(sys.argv[2])
-        x_train, x_test, y_train = setDatasets(dataset, test_dataset)
-    else:
-        print('Wrong number of arguments')
-        exit()
+	print(sys.argv)
+	if len(sys.argv) == 1: 
+		print('Using default dataset')
+		dataset = pd.read_csv('data/train.csv')
+		x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
+	elif len(sys.argv) == 2: 
+		print('Using dataset {}'.format(sys.argv[1]))
+		dataset = pd.read_csv(sys.argv[1])
+		x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
+	elif len(sys.argv) == 3: 
+		print('Using dataset {} for training'.format(sys.argv[1]))
+		print('Using dataset {} for testing'.format(sys.argv[2]))
+		dataset = pd.read_csv(sys.argv[1])
+		test_dataset = pd.read_csv(sys.argv[2])
+		x_train, x_test, y_train = setDatasets(dataset, test_dataset)
+	else:
+		print('Wrong number of arguments')
+		exit()
 
-    # polyFeat = PolynomialFeatures(degree=3)
-    # xPoly = polyFeat.fit_transform(x.toarray())
+	# polyFeat = PolynomialFeatures(degree=3)
+	# xPoly = polyFeat.fit_transform(x.toarray())
 
-    linearRegressor = LinearRegression()
-    linearRegressor.fit(x_train, y_train)
-    y_pred_train = linearRegressor.predict(x_train)
-    y_pred_test = linearRegressor.predict(x_test)
+	linearRegressor = LinearRegression()
+	print(x_train.shape, y_train.shape)
+	linearRegressor.fit(x_train, y_train)
+	y_pred_train = linearRegressor.predict(x_train)
+	y_pred_test = linearRegressor.predict(x_test)
 
-    lr_ridge = Ridge(alpha=750)
-    lr_ridge.fit(x_train, y_train)
-    y_pred_train_ridge = lr_ridge.predict(x_train)
-    y_pred_test_ridge = lr_ridge.predict(x_test)
+	lr_ridge = Ridge(alpha=750)
+	lr_ridge.fit(x_train, y_train)
+	y_pred_train_ridge = lr_ridge.predict(x_train)
+	y_pred_test_ridge = lr_ridge.predict(x_test)
 
 
-    results = {}
+	results = {}
 
-    rmspe_train, errors_train = rmspe(y_train, y_pred_train)
-    rmspe_test, errors_test = rmspe(y_test , y_pred_test)
+	# rmspe_train, errors_train = rmspe(y_train, y_pred_train)
+	# rmspe_test, errors_test = rmspe(y_test , y_pred_test)
 
-    rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
-    rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
+	# rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
+	# rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
 
-    results['LinearRegression'] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': linearRegressor.coef_}
-    results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
+	# results['LinearRegression'] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': linearRegressor.coef_}
+	# results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
 
-    printResults(results)
+	# printResults(results)
 
-    import heapq
+	import heapq
 
-    largest = heapq.nlargest(6, errors_train_ridge)
-    for large in largest:
-        idx = errors_train_ridge.index(large)
-        print(idx, y_train[idx])
-    # analysisPlotter.plotHistogram(errors_train_ridge)
+	largest = heapq.nlargest(6, errors_train_ridge)
+	for large in largest:
+		idx = errors_train_ridge.index(large)
+		print(idx, y_train[idx])
+	# analysisPlotter.plotHistogram(errors_train_ridge)
 
-    if len(sys.argv) < 3:
-        result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
-        # printResults(result)
-        print(train_error, test_error)
+	if len(sys.argv) < 3:
+		result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
+		# printResults(result)
+		print(train_error, test_error)
 
-        result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
-        # printResults(result)
-        print(train_error, test_error)
+		result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
+		# printResults(result)
+		print(train_error, test_error)
 
-    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
-    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
-    # analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
-    plt.show()
+	# analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
+	# analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
+	# analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
+	plt.show()
