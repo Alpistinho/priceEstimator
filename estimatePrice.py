@@ -43,6 +43,26 @@ def printResults(results, print_coefs=False):
         print('\nDesempenho no conjunto de teste:')
         print('RMSPE = %.3f' % results[key]['rmspe_test'])
 
+def kFoldCrossValidation(x, y, predictor, splits = 10):
+    kf = KFold(n_splits=splits)
+    kf.get_n_splits(x)
+    i = 0
+    results = {}
+    for train_index, test_index in kf.split(x):
+        x_train = x[train_index]
+        y_train = y[train_index]
+        x_test = x[test_index]
+        y_test = y[test_index]
+        predictor.fit(x_train, y_train)
+        y_pred_train = predictor.predict(x_train)
+        y_pred_test = predictor.predict(x_test)
+        rmspe_train, errors_train = rmspe(y_train, y_pred_train)
+        rmspe_test, errors_test = rmspe(y_test , y_pred_test)
+        i = i + 1
+        results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
+
+    return results
+
 if __name__ == '__main__':
 
     dataset = pd.read_csv('data/train.csv')
@@ -114,22 +134,9 @@ if __name__ == '__main__':
     # analysisPlotter.plotHistogram(errors_train_ridge)
     plt.show()
 
-    kf = KFold(n_splits=10)
-    kf.get_n_splits(x)
-    i = 0
-    result = {}
-    for train_index, test_index in kf.split(x):
-        len(train_index)
-        x_train = x[train_index]
-        y_train = y[train_index]
-        x_test = x[test_index]
-        y_test = y[test_index]
-        lr_ridge.fit(x_train, y_train)
-        y_pred_train_ridge = lr_ridge.predict(x_train)
-        y_pred_test_ridge = lr_ridge.predict(x_test)
-        rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
-        rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
-        i = i + 1
-        result['Fold {}'.format(i)] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
+    
+    result = kFoldCrossValidation(x,y,lr_ridge)
+    printResults(result)
 
+    result = kFoldCrossValidation(x,y,linearRegressor)
     printResults(result)
