@@ -48,6 +48,9 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
     kf.get_n_splits(x)
     i = 0
     results = {}
+
+    train_error = 0
+    test_error = 0
     for train_index, test_index in kf.split(x):
         x_train = x[train_index]
         y_train = y[train_index]
@@ -58,10 +61,14 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
         y_pred_test = predictor.predict(x_test)
         rmspe_train, errors_train = rmspe(y_train, y_pred_train)
         rmspe_test, errors_test = rmspe(y_test , y_pred_test)
+
+        train_error += rmspe_train
+        test_error += rmspe_test
+        
         i = i + 1
         results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
 
-    return results
+    return results, train_error/splits, test_error/splits
 
 if __name__ == '__main__':
 
@@ -121,9 +128,6 @@ if __name__ == '__main__':
 
     printResults(results)
 
-    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
-    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
-    # analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
 
     import heapq
 
@@ -132,11 +136,18 @@ if __name__ == '__main__':
         idx = errors_train_ridge.index(large)
         print(idx, y_train[idx])
     # analysisPlotter.plotHistogram(errors_train_ridge)
-    plt.show()
 
     
-    result = kFoldCrossValidation(x,y,lr_ridge)
-    printResults(result)
+    result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge)
+    # printResults(result)
+    print(train_error, test_error)
 
-    result = kFoldCrossValidation(x,y,linearRegressor)
-    printResults(result)
+    result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor)
+    # printResults(result)
+    print(train_error, test_error)
+
+    analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
+    analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
+    analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
+    plt.show()
+    
