@@ -92,7 +92,7 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
     oneHotEncoder = OneHotEncoder(categorical_features=[0,1,2])
     x = oneHotEncoder.fit_transform(x).toarray()
 
-    if not(test_dataset):
+    if test_dataset is None:
         x_train, x_test, y_train, y_test = train_test_split(
                 x, 
                 y, 
@@ -102,16 +102,15 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
         return x, y, x_train, x_test, y_train, y_test
 
     else:
-        test_dataset = test_dataset.loc[:, dataset.columns != 'diferenciais']
+        test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
         x_test = test_dataset.iloc[:,1:-1].values
-        y_test = test_dataset['preco'].values
         x_test[:,0] = labelEncoder0.transform(x_test[:,0])
         x_test[:,1] = labelEncoder1.transform(x_test[:,1])
         x_test[:,2] = labelEncoder2.transform(x_test[:,2])
         oneHotEncoder = OneHotEncoder(categorical_features=[0,1,2])
         x_test = oneHotEncoder.transform(x_test).toarray()
 
-        return x_train, x_test, y_train, y_test
+        return x_train, x_test, y_train
 
 if __name__ == '__main__':
     print(sys.argv)
@@ -124,11 +123,11 @@ if __name__ == '__main__':
         dataset = pd.read_csv(sys.argv[1])
         x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
     elif len(sys.argv) == 3: 
-        print('Using dataset {} for training'.format(sys.argv[2]))
-        print('Using dataset {} for testing'.format(sys.argv[3]))
-        dataset = pd.read_csv(sys.argv[2])
-        test_dataset = pd.read_csv(sys.argv[3])
-        x_train, x_test, y_train, y_test = setDatasets(dataset, test_dataset)
+        print('Using dataset {} for training'.format(sys.argv[1]))
+        print('Using dataset {} for testing'.format(sys.argv[2]))
+        dataset = pd.read_csv(sys.argv[1])
+        test_dataset = pd.read_csv(sys.argv[2])
+        x_train, x_test, y_train = setDatasets(dataset, test_dataset)
     else:
         print('Wrong number of arguments')
         exit()
