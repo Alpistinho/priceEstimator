@@ -8,6 +8,23 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.model_selection import train_test_split
+
+from sklearn.linear_model import Ridge
+
+import analysisPlotter
+
+def rmspe(correct, prediction):
+    length = np.min([len(correct),len(prediction)])
+    totalError = 0
+    errors = []
+
+    for c, p in zip(correct, prediction):
+        error = ((p - c)/p)**2
+        totalError += error
+        errors.append(error)
+    totalError = np.sqrt(totalError/length)
+    return totalError, np.array(errors)
 
 if __name__ == '__main__':
 
@@ -26,33 +43,53 @@ if __name__ == '__main__':
     x[:,1] = labelEncoder.fit_transform(x[:,1])
     x[:,2] = labelEncoder.fit_transform(x[:,2])
 
-    x = oneHotEncoder.fit_transform(x)
+    x = oneHotEncoder.fit_transform(x).toarray()
 
-    polyFeat = PolynomialFeatures(degree=3)
+
+    x_train, x_test, y_train, y_test = train_test_split(
+            x, 
+            y, 
+            test_size = 0.4 #,
+            #random_state = 2018
+    )
+
+    # polyFeat = PolynomialFeatures(degree=3)
     # xPoly = polyFeat.fit_transform(x.toarray())
 
     linearRegressor = LinearRegression()
-    linearRegressor.fit(x, y)
+    linearRegressor.fit(x_train, y_train)
+    y_pred_train = linearRegressor.predict(x_train)
+    y_pred_test = linearRegressor.predict(x_test)
 
-    y_pred = linearRegressor.predict(x)
+    lr_ridge = Ridge(alpha=1000)
+    lr_ridge.fit(x_train, y_train)
+    y_pred_train_ridge = lr_ridge.predict(x_train)
+    y_pred_test_ridge = lr_ridge.predict(x_test)
 
+    rmspe_train, errors_train = rmspe(y_train, y_pred_train)
+    rmspe_test, errors_test = rmspe(y_test , y_pred_test)
 
-    # bairros = dataset['bairro'].values
-    # tipos = dataset['tipo'].values
-    # tiposVendedor = dataset['tipo_vendedor'].values
+    rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
+    rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
 
-    # bairrosLabels = labelEncoder.fit_transform(bairros)
-    # tiposLabels = labelEncoder.fit_transform(tipos)
-    # tiposVendedorLabels = labelEncoder.fit_transform(tiposVendedor)
+    print('LinearRegression')
+    print(linearRegressor.coef_)
+    print('\nDesempenho no conjunto de treinamento:')
+    print('RMSPE = %.3f' % rmspe_train)
+
+    print('\nDesempenho no conjunto de teste:')
+    print('RMSPE = %.3f' % rmspe_test)
+
+    print('LinearRegression with Rigde')
+    print(lr_ridge.coef_)
+    print('\nDesempenho no conjunto de treinamento:')
+    print('RMSPE = %.3f' % rmspe_train_ridge)
+
+    print('\nDesempenho no conjunto de teste:')
+    print('RMSPE = %.3f' % rmspe_test_ridge)
+
     
-    # oheBairros = oneHotEncoder.fit_transform(bairrosLabels[:,np.newaxis])
-    # oheTipos = oneHotEncoder.fit_transform(tiposLabels[:,np.newaxis])
-    #oheTipos.toarray() to get the columns encoded
-
-
-    # X_train, X_test, y_train, y_test = train_test_split(
-    #     X, 
-    #     y, 
-    #     test_size = 0.4 #,
-    #     #random_state = 2018
-    # )
+    
+    analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
+    analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
+    plt.show()
