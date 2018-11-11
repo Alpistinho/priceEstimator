@@ -1,16 +1,13 @@
+import sys
+
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-
 from scipy import stats
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
-
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, PolynomialFeatures
 
 import analysisPlotter
 
@@ -70,36 +67,71 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
 
     return results, train_error/splits, test_error/splits
 
-if __name__ == '__main__':
-
-    dataset = pd.read_csv('data/train.csv')
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
     
+
     # input data
-    dataset = dataset.loc[:, dataset.columns != 'diferenciais']
+    train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
 
     # Remove entries with outlier values on the preco column
-    # dataset = dataset[np.abs(dataset.preco - dataset.preco.mean()) <= (4*dataset.preco.std())]
+    if remove_outliers:
+        train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (4*train_dataset.preco.std())]
 
-    x = dataset.iloc[:,1:-1].values
+    x = train_dataset.iloc[:,1:-1].values
     # output data
-    y = dataset['preco'].values
+    y = train_dataset['preco'].values
 
-    labelEncoder = LabelEncoder()
+    # An label encoder for each label to be encoded
+    labelEncoder0 = LabelEncoder()
+    labelEncoder1 = LabelEncoder()
+    labelEncoder2 = LabelEncoder()
+    x[:,0] = labelEncoder0.fit_transform(x[:,0])
+    x[:,1] = labelEncoder1.fit_transform(x[:,1])
+    x[:,2] = labelEncoder2.fit_transform(x[:,2])
+
     oneHotEncoder = OneHotEncoder(categorical_features=[0,1,2])
-
-    x[:,0] = labelEncoder.fit_transform(x[:,0])
-    x[:,1] = labelEncoder.fit_transform(x[:,1])
-    x[:,2] = labelEncoder.fit_transform(x[:,2])
-
     x = oneHotEncoder.fit_transform(x).toarray()
 
+    if not(test_dataset):
+        x_train, x_test, y_train, y_test = train_test_split(
+                x, 
+                y, 
+                test_size = 0.9 #,
+                #random_state = 2018
+        )
+        return x, y, x_train, x_test, y_train, y_test
 
-    x_train, x_test, y_train, y_test = train_test_split(
-            x, 
-            y, 
-            test_size = 0.9 #,
-            #random_state = 2018
-    )
+    else:
+        test_dataset = test_dataset.loc[:, dataset.columns != 'diferenciais']
+        x_test = test_dataset.iloc[:,1:-1].values
+        y_test = test_dataset['preco'].values
+        x_test[:,0] = labelEncoder0.transform(x_test[:,0])
+        x_test[:,1] = labelEncoder1.transform(x_test[:,1])
+        x_test[:,2] = labelEncoder2.transform(x_test[:,2])
+        oneHotEncoder = OneHotEncoder(categorical_features=[0,1,2])
+        x_test = oneHotEncoder.transform(x_test).toarray()
+
+        return x_train, x_test, y_train, y_test
+
+if __name__ == '__main__':
+    print(sys.argv)
+    if len(sys.argv) == 1: 
+        print('Using default dataset')
+        dataset = pd.read_csv('data/train.csv')
+        x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
+    elif len(sys.argv) == 2: 
+        print('Using dataset {}'.format(sys.argv[1]))
+        dataset = pd.read_csv(sys.argv[1])
+        x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
+    elif len(sys.argv) == 3: 
+        print('Using dataset {} for training'.format(sys.argv[2]))
+        print('Using dataset {} for testing'.format(sys.argv[3]))
+        dataset = pd.read_csv(sys.argv[2])
+        test_dataset = pd.read_csv(sys.argv[3])
+        x_train, x_test, y_train, y_test = setDatasets(dataset, test_dataset)
+    else:
+        print('Wrong number of arguments')
+        exit()
 
     # polyFeat = PolynomialFeatures(degree=3)
     # xPoly = polyFeat.fit_transform(x.toarray())
@@ -136,17 +168,16 @@ if __name__ == '__main__':
         print(idx, y_train[idx])
     # analysisPlotter.plotHistogram(errors_train_ridge)
 
-    
-    result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
-    # printResults(result)
-    print(train_error, test_error)
+    if len(sys.argv) < 3:
+        result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
+        # printResults(result)
+        print(train_error, test_error)
 
-    result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
-    # printResults(result)
-    print(train_error, test_error)
+        result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
+        # printResults(result)
+        print(train_error, test_error)
 
     # analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
     # analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
     # analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
     plt.show()
-    
