@@ -85,14 +85,59 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
     labelEncoder0 = LabelEncoder()
     labelEncoder1 = LabelEncoder()
     labelEncoder2 = LabelEncoder()
-    x[:,0] = labelEncoder0.fit_transform(x[:,0])
-    x[:,1] = labelEncoder1.fit_transform(x[:,1])
-    x[:,2] = labelEncoder2.fit_transform(x[:,2])
+    
+    
+    
+    if test_dataset is not None:
+        test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
+        x_test = test_dataset.iloc[:,1:-1].values
 
-    oneHotEncoder = OneHotEncoder(categorical_features=[0,1,2])
+        # Fit labels using both the training and test values to avoid missing any labels
+        
+        labels0 = np.hstack((x[:,0], x_test[:,0]))
+        labels1 = np.hstack((x[:,1], x_test[:,1]))
+        labels2 = np.hstack((x[:,2], x_test[:,2]))
+
+        labelEncoder0.fit(labels0)
+        labelEncoder1.fit(labels1)
+        labelEncoder2.fit(labels2)
+
+        x_test[:,0] = labelEncoder0.transform(x_test[:,0])
+        x_test[:,1] = labelEncoder1.transform(x_test[:,1])
+        x_test[:,2] = labelEncoder2.transform(x_test[:,2])
+
+        print(labelEncoder1.transform(labels1))
+        print(np.max(labelEncoder0.transform(labels0)))
+        print(np.max(labelEncoder1.transform(labels1)))
+        print(np.max(labelEncoder2.transform(labels2)))
+        print(labelEncoder0.classes_)
+        # Create categories explicitely in order to preserve number of columns accross train and test data
+        category0 = np.arange(np.max(labelEncoder0.transform(labels0)))
+        category1 = np.arange(np.max(labelEncoder1.transform(labels1)))
+        category2 = np.arange(np.max(labelEncoder2.transform(labels2)))
+        print(category0)
+        print(category1)
+        print(category2)
+        oneHotEncoder = OneHotEncoder(categories=[category0, category1, category2])
+
+        x_test = oneHotEncoder.fit_transform(x_test).toarray()
+        print(oneHotEncoder.categories_)
+    else:
+        labelEncoder0.fit(x[:,0])
+        labelEncoder1.fit(x[:,1])
+        labelEncoder2.fit(x[:,2])
+
+    x[:,0] = labelEncoder0.transform(x[:,0])
+    x[:,1] = labelEncoder1.transform(x[:,1])
+    x[:,2] = labelEncoder2.transform(x[:,2])
+
+    
     x = oneHotEncoder.fit_transform(x).toarray()
 
-    if test_dataset is None:
+    if test_dataset is not None:
+        print(x.shape, x_test.shape, y.shape)
+        return x, x_test, y
+    else:
         x_train, x_test, y_train, y_test = train_test_split(
                 x, 
                 y, 
@@ -100,17 +145,6 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
                 #random_state = 2018
         )
         return x, y, x_train, x_test, y_train, y_test
-
-    else:
-        test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
-        x_test = test_dataset.iloc[:,1:-1].values
-        x_test[:,0] = labelEncoder0.transform(x_test[:,0])
-        x_test[:,1] = labelEncoder1.transform(x_test[:,1])
-        x_test[:,2] = labelEncoder2.transform(x_test[:,2])
-        oneHotEncoder = OneHotEncoder(categorical_features=[0,1,2])
-        x_test = oneHotEncoder.transform(x_test).toarray()
-
-        return x_train, x_test, y_train
 
 if __name__ == '__main__':
     print(sys.argv)
