@@ -49,8 +49,10 @@ if __name__ == '__main__':
     
     # input data
     dataset = dataset.loc[:, dataset.columns != 'diferenciais']
-    x2 = dataset[np.abs(dataset.preco - dataset.preco.mean()) <= (4*dataset.preco.std())]
-    dataset = x2
+
+    # Remove entries with outlier values on the preco column
+    dataset = dataset[np.abs(dataset.preco - dataset.preco.mean()) <= (4*dataset.preco.std())]
+
     x = dataset.iloc[:,1:-1].values
     # output data
     y = dataset['preco'].values
@@ -68,7 +70,7 @@ if __name__ == '__main__':
     x_train, x_test, y_train, y_test = train_test_split(
             x, 
             y, 
-            test_size = 0.4 #,
+            test_size = 0.9 #,
             #random_state = 2018
     )
 
@@ -99,14 +101,35 @@ if __name__ == '__main__':
 
     printResults(results)
 
-    analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
-    analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
-    analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
+    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
+    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
+    # analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
 
     import heapq
 
     largest = heapq.nlargest(6, errors_train_ridge)
     for large in largest:
-        print(errors_train_ridge.index(large))
+        idx = errors_train_ridge.index(large)
+        print(idx, y_train[idx])
     # analysisPlotter.plotHistogram(errors_train_ridge)
     plt.show()
+
+    kf = KFold(n_splits=10)
+    kf.get_n_splits(x)
+    i = 0
+    result = {}
+    for train_index, test_index in kf.split(x):
+        len(train_index)
+        x_train = x[train_index]
+        y_train = y[train_index]
+        x_test = x[test_index]
+        y_test = y[test_index]
+        lr_ridge.fit(x_train, y_train)
+        y_pred_train_ridge = lr_ridge.predict(x_train)
+        y_pred_test_ridge = lr_ridge.predict(x_test)
+        rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
+        rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
+        i = i + 1
+        result['Fold {}'.format(i)] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
+
+    printResults(result)
