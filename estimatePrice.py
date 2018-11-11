@@ -11,10 +11,16 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder, PolynomialFeature
 
 import analysisPlotter
 
-def outputResult(outfile):
+def outputResult(outfile, results):
 
 	with open(outfile , 'w') as f:
-		f.write('Id,preco')
+		f.write('Id,preco\n')
+		lines = []
+		Id = 0
+		for result in results:
+			lines.append(','.join([str(Id), str(result)]) + '\n')
+			Id += 1
+		f.writelines(lines)
 
 def rmspe(correct, prediction):
 	length = np.min([len(correct),len(prediction)])
@@ -162,7 +168,7 @@ if __name__ == '__main__':
 
 	if len(sys.argv) == 3:
 		print('Outputing submission data')
-		outputResult('submission.csv')
+		outputResult('submission.csv', y_pred_test_ridge)
 	else: 
 
 		rmspe_test, errors_test = rmspe(y_test , y_pred_test)
