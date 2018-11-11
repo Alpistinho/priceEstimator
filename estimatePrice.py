@@ -44,7 +44,7 @@ def printResults(results, print_coefs=False):
         print('RMSPE = %.3f' % results[key]['rmspe_test'])
 
 def kFoldCrossValidation(x, y, predictor, splits = 10):
-    kf = KFold(n_splits=splits)
+    kf = KFold(n_splits=splits, shuffle=True)
     kf.get_n_splits(x)
     i = 0
     results = {}
@@ -78,7 +78,7 @@ if __name__ == '__main__':
     dataset = dataset.loc[:, dataset.columns != 'diferenciais']
 
     # Remove entries with outlier values on the preco column
-    dataset = dataset[np.abs(dataset.preco - dataset.preco.mean()) <= (4*dataset.preco.std())]
+    # dataset = dataset[np.abs(dataset.preco - dataset.preco.mean()) <= (4*dataset.preco.std())]
 
     x = dataset.iloc[:,1:-1].values
     # output data
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     y_pred_train = linearRegressor.predict(x_train)
     y_pred_test = linearRegressor.predict(x_test)
 
-    lr_ridge = Ridge(alpha=10000)
+    lr_ridge = Ridge(alpha=750)
     lr_ridge.fit(x_train, y_train)
     y_pred_train_ridge = lr_ridge.predict(x_train)
     y_pred_test_ridge = lr_ridge.predict(x_test)
@@ -128,7 +128,6 @@ if __name__ == '__main__':
 
     printResults(results)
 
-
     import heapq
 
     largest = heapq.nlargest(6, errors_train_ridge)
@@ -138,16 +137,16 @@ if __name__ == '__main__':
     # analysisPlotter.plotHistogram(errors_train_ridge)
 
     
-    result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge)
+    result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
     # printResults(result)
     print(train_error, test_error)
 
-    result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor)
+    result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
     # printResults(result)
     print(train_error, test_error)
 
-    analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
-    analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
-    analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
+    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
+    # analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
+    # analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
     plt.show()
     
