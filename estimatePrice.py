@@ -36,9 +36,11 @@ def printResults(results, print_coefs=False):
 			print(results[key]['coef'])
 		print('\nDesempenho no conjunto de treinamento:')
 		print('RMSPE = %.3f' % results[key]['rmspe_train'])
-
-		print('\nDesempenho no conjunto de teste:')
-		print('RMSPE = %.3f' % results[key]['rmspe_test'])
+		try:
+			print('\nDesempenho no conjunto de teste:')
+			print('RMSPE = %.3f' % results[key]['rmspe_test'])
+		except KeyError:
+			pass
 
 def kFoldCrossValidation(x, y, predictor, splits = 10):
 	kf = KFold(n_splits=splits, shuffle=True)
@@ -98,7 +100,6 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
 	x_dataset['tipo_vendedor'] = x_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 
 	x_dataset = pd.get_dummies(x_dataset)
-	print(x_dataset.columns)
 	# input data
 	x = x_dataset.iloc[:, 1:].values
 
@@ -112,17 +113,11 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
 		test_dataset = pd.get_dummies(test_dataset)
 
 		x_test = test_dataset.iloc[:,1:].values
-		print(test_dataset.columns)
-		print(x.shape, x_test.shape, y.shape)
+
 		return x, x_test, y
 
 	else:
-		x_train, x_test, y_train, y_test = train_test_split(
-				x, 
-				y, 
-				test_size = 0.9 #,
-				#random_state = 2018
-		)
+		x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.9)
 		return x, y, x_train, x_test, y_train, y_test
 
 if __name__ == '__main__':
@@ -149,7 +144,6 @@ if __name__ == '__main__':
 	# xPoly = polyFeat.fit_transform(x.toarray())
 
 	linearRegressor = LinearRegression()
-	print(x_train.shape, y_train.shape)
 	linearRegressor.fit(x_train, y_train)
 	y_pred_train = linearRegressor.predict(x_train)
 	y_pred_test = linearRegressor.predict(x_test)
@@ -159,37 +153,34 @@ if __name__ == '__main__':
 	y_pred_train_ridge = lr_ridge.predict(x_train)
 	y_pred_test_ridge = lr_ridge.predict(x_test)
 
-
+	rmspe_train, errors_train = rmspe(y_train, y_pred_train)
+	rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
+	
 	results = {}
+	results['LinearRegression'] = {'rmspe_train': rmspe_train, 'coef': linearRegressor.coef_}
+	results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'coef': lr_ridge.coef_}
 
-	# rmspe_train, errors_train = rmspe(y_train, y_pred_train)
-	# rmspe_test, errors_test = rmspe(y_test , y_pred_test)
+	if len(sys.argv) == 3:
+		print('Outputing submission data')
+		outputResult('submission.csv')
+	else: 
 
-	# rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
-	# rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
+		rmspe_test, errors_test = rmspe(y_test , y_pred_test)
+		rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
 
-	# results['LinearRegression'] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': linearRegressor.coef_}
-	# results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
+		results['LinearRegression'] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': linearRegressor.coef_}
+		results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
 
-	# printResults(results)
-
-	import heapq
-
-	largest = heapq.nlargest(6, errors_train_ridge)
-	for large in largest:
-		idx = errors_train_ridge.index(large)
-		print(idx, y_train[idx])
-	# analysisPlotter.plotHistogram(errors_train_ridge)
-
-	if len(sys.argv) < 3:
 		result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
-		# printResults(result)
+		print('kFold cross validation with {} folds (Linear)'.format(10))
 		print(train_error, test_error)
 
 		result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
-		# printResults(result)
+		print('kFold cross validation with {} folds (Ridge)'.format(10))
 		print(train_error, test_error)
 
+	print('Cross validation using train/test separation from same dataset:')
+	printResults(results)
 	# analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
 	# analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
 	# analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
