@@ -5,9 +5,9 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from scipy import stats
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, PolynomialFeatures
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 import analysisPlotter
 
@@ -82,7 +82,7 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
 
 	# Remove entries with outlier values on the preco column
 	if remove_outliers:
-		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (4*train_dataset.preco.std())]
+		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (2*train_dataset.preco.std())]
 
 	# output data
 	y = train_dataset['preco'].values
@@ -149,15 +149,35 @@ if __name__ == '__main__':
 	# polyFeat = PolynomialFeatures(degree=3)
 	# xPoly = polyFeat.fit_transform(x.toarray())
 
+	# scaler = StandardScaler()
+	# print(x_train[:10,3:5])
+	# # analysisPlotter.plotHistogram(x_train[:,3:5])
+	# scaler.fit(x_train[:,3:5])
+	# print(scaler.transform(x_train[:,3:5]))
+
+	# analysisPlotter.plotHistogram(scaler.transform(x_train[:,3:5])[:,0])
+	# plt.show()
+
 	linearRegressor = LinearRegression()
+	
 	linearRegressor.fit(x_train, y_train)
 	y_pred_train = linearRegressor.predict(x_train)
 	y_pred_test = linearRegressor.predict(x_test)
 
-	lr_ridge = Ridge(alpha=750)
+	lr_ridge = Ridge(alpha=200)
 	lr_ridge.fit(x_train, y_train)
 	y_pred_train_ridge = lr_ridge.predict(x_train)
 	y_pred_test_ridge = lr_ridge.predict(x_test)
+
+	# analysisPlotter.plotAscending(np.arange(y_train, y_train)
+	order = y_train.argsort()
+	plt.plot(np.arange(y_train.shape[0]), y_train[order], np.arange(y_train.shape[0]), y_pred_train_ridge[order])
+
+	percents = np.abs(y_pred_train_ridge[order] - y_train[order])/y_train[order]
+
+	fig1, ax1 = plt.subplots()
+	ax1.semilogx(y_train[order],percents[order])
+
 
 	rmspe_train, errors_train = rmspe(y_train, y_pred_train)
 	rmspe_train_ridge, errors_train_ridge = rmspe(y_train, y_pred_train_ridge)
@@ -167,8 +187,10 @@ if __name__ == '__main__':
 	results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'coef': lr_ridge.coef_}
 
 	if len(sys.argv) == 3:
+		from time import gmtime, strftime
+		now = strftime("%Y%m%d%H%M%S", gmtime())
 		print('Outputing submission data')
-		outputResult('submission.csv', y_pred_test_ridge)
+		outputResult('submissions/submission{}.csv'.format(now), y_pred_test_ridge)
 	else: 
 
 		rmspe_test, errors_test = rmspe(y_test , y_pred_test)
@@ -178,11 +200,11 @@ if __name__ == '__main__':
 		results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
 
 		result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
-		print('kFold cross validation with {} folds (Linear)'.format(10))
+		print('kFold cross validation with {} folds (Ridge)'.format(10))
 		print(train_error, test_error)
 
 		result, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
-		print('kFold cross validation with {} folds (Ridge)'.format(10))
+		print('kFold cross validation with {} folds (Linear)'.format(10))
 		print(train_error, test_error)
 
 	print('Cross validation using train/test separation from same dataset:')
@@ -191,3 +213,16 @@ if __name__ == '__main__':
 	# analysisPlotter.plotAscending(x_train[:,75], y_pred_train_ridge)
 	# analysisPlotter.plotAscending(y_pred_train_ridge, np.array(errors_train_ridge))
 	plt.show()
+
+	# values = []
+	# for alpha in np.logspace(0, 4, num = 25):
+	# 	lr_ridge = Ridge(alpha=alpha)
+	# 	lr_ridge.fit(x_train, y_train)
+	# 	y_pred_train_ridge = lr_ridge.predict(x_train)
+	# 	y_pred_test_ridge = lr_ridge.predict(x_test)
+	# 	_, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
+	# 	values.append([alpha, train_error, test_error])
+
+	# values = np.array(values)
+	# plt.plot(values[:,0], values[:,1],values[:,0], values[:,2])
+	# plt.show()
