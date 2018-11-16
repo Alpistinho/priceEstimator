@@ -69,7 +69,7 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
 
 	return results, train_error/i, test_error/i
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, select_k_features=None):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
@@ -78,56 +78,71 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True):
 	if remove_outliers:
 		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (2*train_dataset.preco.std())]
 
-	train_ids = train_dataset['Id'].values
-
 	# output data
 	y = train_dataset['preco'].values
-	# Remove columns not used in training
-	x_dataset = train_dataset.drop(['preco'], axis=1, inplace=False)
-	
-	if test_dataset is not None:
-		test_ids = test_dataset['Id'].values
-		test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
-		complete_dataset = x_dataset.append(test_dataset)
-	else:
-		complete_dataset = x_dataset
 
+	# Remove columns not used in training
+	train_dataset.drop(['preco'], axis=1, inplace=True)
+	
+	if test_dataset is None:
+		complete_dataset = train_dataset
+	else:
+		test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
+		complete_dataset = train_dataset.append(test_dataset)
+		
 	tipoCategories = complete_dataset.tipo.unique()
 	bairroCategories = complete_dataset.bairro.unique()
 	tipoVendedorCategories = complete_dataset.tipo_vendedor.unique()
 
-	
+	complete_dataset['tipo'] = complete_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
+	complete_dataset['bairro'] = complete_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+	complete_dataset['tipo_vendedor'] = complete_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
+
 	# Do one hot encoding on the categorical columns
-	complete_dataset['tipo'] = x_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
-	complete_dataset['bairro'] = x_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
-	complete_dataset['tipo_vendedor'] = x_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
-
-	complete_dataset = pd.get_dummies(x_dataset)
-	# input data
-	x = complete_dataset.iloc[:, 1:].values
-
+	complete_dataset = pd.get_dummies(complete_dataset)
 
 	if test_dataset is None:
+		train_dataset['tipo'] = train_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
+		train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+		train_dataset['tipo_vendedor'] = train_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
+		
+		# Do one hot encoding on the categorical columns
+		train_dataset = pd.get_dummies(train_dataset)
+		
+		# input data
+		x = train_dataset.iloc[:, 1:].values
+
 		x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.9)
 		
-		selectKBest = SelectKBest(score_func=f_regression, k=50)
-		x_train_kbest = selectKBest.fit_transform(x_train,y_train)
-		x_train = x_train_kbest
-
-		x_test_kbest = selectKBest.transform(x_test)
-		x_test = x_test_kbest
-
-		x = selectKBest.transform(x)
-
-		return x, y, x_train, x_test, y_train, y_test
-		
 	else:
+		train_dataset['tipo'] = train_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
+		train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+		train_dataset['tipo_vendedor'] = train_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
+
 		test_dataset['tipo'] = test_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
 		test_dataset['bairro'] = test_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 		test_dataset['tipo_vendedor'] = test_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
-		
+
+		# Do one hot encoding on the categorical columns
+		train_dataset = pd.get_dummies(train_dataset)
 		test_dataset = pd.get_dummies(test_dataset)
 
-		x_test = test_dataset.iloc[:,1:].values
+		# input data
+		x_train = train_dataset.iloc[:,1:]
+		x_test = test_dataset.iloc[:,1:]
 
-		return x, x_test, y
+		y_train = y
+
+
+	selectKBest = SelectKBest(score_func=f_regression, k=5)
+	x_train = selectKBest.fit_transform(x_train, y_train)
+
+	x_test = selectKBest.transform(x_test)
+
+	x = complete_dataset.iloc[:,1:]
+	x = selectKBest.transform(x)
+
+	try:
+		return x, y, x_train, x_test, y_train, y_test
+	except UnboundLocalError:
+		return x_train, x_test, y
