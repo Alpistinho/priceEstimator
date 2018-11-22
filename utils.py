@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
-from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.feature_selection import SelectKBest, f_regression, VarianceThreshold
 
 def outputResult(outfile, results):
 
@@ -69,7 +69,21 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
 
 	return results, train_error/i, test_error/i
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None):
+def selectFeatures(feature_selector, x_train, y_train, x_test, x, complete_dataset):
+
+	x_train = feature_selector.fit_transform(x_train, y_train)
+	x_test = feature_selector.transform(x_test)
+
+	x = complete_dataset.loc[:, complete_dataset.columns != 'Id']
+	x = feature_selector.transform(x)
+
+	mask = feature_selector.get_support()
+	columns = complete_dataset.loc[:, complete_dataset.columns != 'Id'].columns
+	complete_dataset = pd.DataFrame(x, columns=columns[mask])
+
+	return x_train, x_test, x, complete_dataset
+
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
@@ -90,6 +104,7 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 		test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
 		complete_dataset = train_dataset.append(test_dataset)
 		
+
 	tipoCategories = complete_dataset.tipo.unique()
 	bairroCategories = complete_dataset.bairro.unique()
 	tipoVendedorCategories = complete_dataset.tipo_vendedor.unique()
@@ -133,18 +148,12 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 
 		y_train = y
 
+	if minimum_variance is not None:
+		varianceThereshold = VarianceThreshold(threshold=minimum_variance)
+		x_train, x_test, x, complete_dataset = selectFeatures(varianceThereshold, x_train, y_train, x_test, x, complete_dataset)
 	if k_features is not None:
 		selectKBest = SelectKBest(score_func=f_regression, k=k_features)
-		x_train = selectKBest.fit_transform(x_train, y_train)
-
-		x_test = selectKBest.transform(x_test)
-
-		x = complete_dataset.iloc[:,1:]
-		x = selectKBest.transform(x)
-
-		mask = selectKBest.get_support()
-		columns = complete_dataset.columns[1:]
-		complete_dataset = pd.DataFrame(x, columns=columns[mask])
+		x_train, x_test, x, complete_dataset = selectFeatures(selectKBest, x_train, y_train, x_test, x, complete_dataset)
 
 	try:
 		return x, y, x_train, x_test, y_train, y_test, complete_dataset
