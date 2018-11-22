@@ -13,22 +13,24 @@ import analysisPlotter
 from utils import *
 
 
+k_features = 10
+
 if __name__ == '__main__':
 	print(sys.argv)
 	if len(sys.argv) == 1: 
 		print('Using default dataset')
 		dataset = pd.read_csv('data/train.csv')
-		x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
+		x, y, x_train, x_test, y_train, y_test, complete_dataset = setDatasets(dataset, k_features=k_features)
 	elif len(sys.argv) == 2: 
 		print('Using dataset {}'.format(sys.argv[1]))
 		dataset = pd.read_csv(sys.argv[1])
-		x, y, x_train, x_test, y_train, y_test = setDatasets(dataset)
+		x, y, x_train, x_test, y_train, y_test, complete_dataset = setDatasets(dataset, k_features=k_features)
 	elif len(sys.argv) == 3: 
 		print('Using dataset {} for training'.format(sys.argv[1]))
 		print('Using dataset {} for testing'.format(sys.argv[2]))
 		dataset = pd.read_csv(sys.argv[1])
 		test_dataset = pd.read_csv(sys.argv[2])
-		x_train, x_test, y_train = setDatasets(dataset, test_dataset)
+		x_train, x_test, y_train, complete_dataset = setDatasets(dataset, test_dataset, k_features=k_features)
 	else:
 		print('Wrong number of arguments')
 		exit()

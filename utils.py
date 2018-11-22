@@ -69,7 +69,7 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
 
 	return results, train_error/i, test_error/i
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, select_k_features=None):
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
@@ -133,16 +133,20 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, select_k
 
 		y_train = y
 
+	if k_features is not None:
+		selectKBest = SelectKBest(score_func=f_regression, k=k_features)
+		x_train = selectKBest.fit_transform(x_train, y_train)
 
-	selectKBest = SelectKBest(score_func=f_regression, k=5)
-	x_train = selectKBest.fit_transform(x_train, y_train)
+		x_test = selectKBest.transform(x_test)
 
-	x_test = selectKBest.transform(x_test)
+		x = complete_dataset.iloc[:,1:]
+		x = selectKBest.transform(x)
 
-	x = complete_dataset.iloc[:,1:]
-	x = selectKBest.transform(x)
+		mask = selectKBest.get_support()
+		columns = complete_dataset.columns[1:]
+		complete_dataset = pd.DataFrame(x, columns=columns[mask])
 
 	try:
-		return x, y, x_train, x_test, y_train, y_test
+		return x, y, x_train, x_test, y_train, y_test, complete_dataset
 	except UnboundLocalError:
-		return x_train, x_test, y
+		return x_train, x_test, y, complete_dataset
