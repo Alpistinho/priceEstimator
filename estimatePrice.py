@@ -5,9 +5,11 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from scipy import stats
+from sklearn import svm, tree
 from sklearn.linear_model import LinearRegression, Ridge, RidgeCV, BayesianRidge
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.ensemble import RandomForestRegressor
 
 import analysisPlotter
 from utils import *
@@ -20,7 +22,7 @@ if __name__ == '__main__':
 	if len(sys.argv) == 1: 
 		print('Using default dataset')
 		dataset = pd.read_csv('data/train.csv')
-		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=20, minimum_variance=0.01)
+		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=20, minimum_variance=None)
 	elif len(sys.argv) == 2: 
 		print('Using dataset {}'.format(sys.argv[1]))
 		dataset = pd.read_csv(sys.argv[1])
@@ -56,7 +58,9 @@ if __name__ == '__main__':
 	y_pred_train = linearRegressor.predict(x_train)
 	y_pred_test = linearRegressor.predict(x_test)
 
-	lr_ridge = Ridge(alpha=10000)
+	# lr_ridge = Ridge(alpha=10000)
+	# lr_ridge = svm.SVR(gamma='scale')
+	lr_ridge = RandomForestRegressor()
 	# lr_ridge = BayesianRidge(n_iter=300, lambda_1=1, lambda_2=1)
 	lr_ridge.fit(x_train, y_train)
 	y_pred_train_ridge = lr_ridge.predict(x_train)
@@ -77,7 +81,10 @@ if __name__ == '__main__':
 	
 	results = {}
 	results['LinearRegression'] = {'rmspe_train': rmspe_train, 'coef': linearRegressor.coef_}
-	results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'coef': lr_ridge.coef_}
+	try:
+		results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'coef': lr_ridge.coef_}
+	except AttributeError:
+		results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge}
 
 	if len(sys.argv) == 3:
 		from time import gmtime, strftime
@@ -90,7 +97,10 @@ if __name__ == '__main__':
 		rmspe_test_ridge, errors_test_ridge = rmspe(y_test , y_pred_test_ridge)
 
 		results['LinearRegression'] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': linearRegressor.coef_}
-		results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
+		try:
+			results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge, 'coef': lr_ridge.coef_}
+		except AttributeError:
+			results['LinearRegression with Rigde'] = {'rmspe_train': rmspe_train_ridge, 'rmspe_test': rmspe_test_ridge}
 
 		result, train_error, test_error = kFoldCrossValidation(x,y,lr_ridge,splits=10)
 		print('kFold cross validation with {} folds (Ridge)'.format(10))
