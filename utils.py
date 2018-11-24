@@ -4,6 +4,8 @@ import pandas as pd
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.feature_selection import SelectKBest, f_regression, VarianceThreshold
 
+import matplotlib.pyplot as plt
+
 def outputResult(outfile, results, log_correct_precos=True):
 
 	with open(outfile , 'w') as f:
@@ -17,10 +19,14 @@ def outputResult(outfile, results, log_correct_precos=True):
 			Id += 1
 		f.writelines(lines)
 
-def rmspe(correct, prediction):
+def rmspe(correct, prediction, log_correct_preco=True):
 	if len(correct) != len(prediction):
 		print('RMSPE: correct and prediction with wrong lengths. Check stuff')
 		exit()
+
+	if log_correct_preco:
+		correct = np.expm1(correct)
+		prediction = np.expm1(prediction)
 
 	length = len(correct)
 	totalError = 0
