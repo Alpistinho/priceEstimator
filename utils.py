@@ -16,7 +16,11 @@ def outputResult(outfile, results):
 		f.writelines(lines)
 
 def rmspe(correct, prediction):
-	length = np.min([len(correct),len(prediction)])
+	if len(correct) != len(prediction):
+		print('RMSPE: correct and prediction with wrong lengths. Check stuff')
+		exit()
+
+	length = len(correct)
 	totalError = 0
 	errors = []
 
@@ -33,11 +37,13 @@ def printResults(results, print_coefs=False):
 		print(key)
 		if print_coefs:
 			print(results[key]['coef'])
-		print('\nDesempenho no conjunto de treinamento:')
-		print('RMSPE = %.3f' % results[key]['rmspe_train'])
+
+		rmspe_train = results[key]['rmspe_train']
+		print('\nDesempenho no conjunto de treinamento: RMPSE = %.3f' % rmspe_train)
 		try:
+			rmspe_test = results[key]['rmspe_test']
 			print('\nDesempenho no conjunto de teste:')
-			print('RMSPE = %.3f' % results[key]['rmspe_test'])
+			print('RMSPE = %.3f' % rmspe_test)
 		except KeyError:
 			pass
 
@@ -65,11 +71,20 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
 		test_error += rmspe_test
 		
 		i = i + 1
-		results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
+		try:
+			results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
+		except AttributeError:
+			results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test}
+			
 
 	return results, train_error/i, test_error/i
 
 def selectFeatures(feature_selector, x_train, y_train, x_test, x, complete_dataset):
+	
+	# Monkey patching the scikit installation to avoid some divide-by-zero warnings
+	# The warning seems harmless in this specific case
+	# https://github.com/scikit-learn/scikit-learn/commit/dfe9fc79acf853007ce94b1dd54a7c07cbd6ac7c
+	# https://github.com/scikit-learn/scikit-learn/issues/11395
 
 	x_train = feature_selector.fit_transform(x_train, y_train)
 	x_test = feature_selector.transform(x_test)
@@ -90,7 +105,7 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 
 	# Remove entries with outlier values on the preco column
 	if remove_outliers:
-		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (2*train_dataset.preco.std())]
+		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (3*train_dataset.preco.std())]
 
 	# output data
 	y = train_dataset['preco'].values
