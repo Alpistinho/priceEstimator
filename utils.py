@@ -4,13 +4,15 @@ import pandas as pd
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.feature_selection import SelectKBest, f_regression, VarianceThreshold
 
-def outputResult(outfile, results):
+def outputResult(outfile, results, log_correct_precos=True):
 
 	with open(outfile , 'w') as f:
 		f.write('Id,preco\n')
 		lines = []
 		Id = 0
 		for result in results:
+			if log_correct_precos:
+				result = np.expm1(result)
 			lines.append(','.join([str(Id), str(result)]) + '\n')
 			Id += 1
 		f.writelines(lines)
@@ -98,7 +100,7 @@ def selectFeatures(feature_selector, x_train, y_train, x_test, x, complete_datas
 
 	return x_train, x_test, x, complete_dataset
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None):
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
@@ -108,7 +110,10 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (3*train_dataset.preco.std())]
 
 	# output data
-	y = train_dataset['preco'].values
+	if (log_correct_preco):
+		y = np.log1p(train_dataset['preco'].values)
+	else:
+		y = train_dataset('preco').values
 
 	# Remove columns not used in training
 	train_dataset.drop(['preco'], axis=1, inplace=True)

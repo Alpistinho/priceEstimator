@@ -15,24 +15,24 @@ import analysisPlotter
 from utils import *
 
 
-k_features = 20
-
+k_features = None
+correct_preco = True
 if __name__ == '__main__':
 	print(sys.argv)
 	if len(sys.argv) == 1: 
 		print('Using default dataset (data/train.csv) for training and cross validation')
 		dataset = pd.read_csv('data/train.csv')
-		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=20, minimum_variance=None)
+		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=k_features, minimum_variance=None, log_correct_preco=correct_preco)
 	elif len(sys.argv) == 2: 
 		print('Using dataset {} for training and cross validation'.format(sys.argv[1]))
 		dataset = pd.read_csv(sys.argv[1])
-		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=k_features)
+		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=k_features, log_correct_preco=correct_preco)
 	elif len(sys.argv) == 3: 
 		print('Using dataset {} for training'.format(sys.argv[1]))
 		print('Using dataset {} for testing'.format(sys.argv[2]))
 		dataset = pd.read_csv(sys.argv[1])
 		test_dataset = pd.read_csv(sys.argv[2])
-		x_train, x_test, y_train, filtered_dataset = setDatasets(dataset, test_dataset, k_features=k_features)
+		x_train, x_test, y_train, filtered_dataset = setDatasets(dataset, test_dataset, k_features=k_features, log_correct_preco=correct_preco)
 	else:
 		print('Wrong number of arguments')
 		print('Correct usage:')
