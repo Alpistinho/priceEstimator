@@ -4,19 +4,31 @@ import pandas as pd
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.feature_selection import SelectKBest, f_regression, VarianceThreshold, RFE
 
-def outputResult(outfile, results):
+import matplotlib.pyplot as plt
+
+def outputResult(outfile, results, log_correct_precos=True):
 
 	with open(outfile , 'w') as f:
 		f.write('Id,preco\n')
 		lines = []
 		Id = 0
 		for result in results:
+			if log_correct_precos:
+				result = np.expm1(result)
 			lines.append(','.join([str(Id), str(result)]) + '\n')
 			Id += 1
 		f.writelines(lines)
 
-def rmspe(correct, prediction):
-	length = np.min([len(correct),len(prediction)])
+def rmspe(correct, prediction, log_correct_preco=True):
+	if len(correct) != len(prediction):
+		print('RMSPE: correct and prediction with wrong lengths. Check stuff')
+		exit()
+
+	if log_correct_preco:
+		correct = np.expm1(correct)
+		prediction = np.expm1(prediction)
+
+	length = len(correct)
 	totalError = 0
 	errors = []
 
@@ -33,11 +45,13 @@ def printResults(results, print_coefs=False):
 		print(key)
 		if print_coefs:
 			print(results[key]['coef'])
-		print('\nDesempenho no conjunto de treinamento:')
-		print('RMSPE = %.3f' % results[key]['rmspe_train'])
+
+		rmspe_train = results[key]['rmspe_train']
+		print('\nDesempenho no conjunto de treinamento: RMPSE = %.3f' % rmspe_train)
 		try:
+			rmspe_test = results[key]['rmspe_test']
 			print('\nDesempenho no conjunto de teste:')
-			print('RMSPE = %.3f' % results[key]['rmspe_test'])
+			print('RMSPE = %.3f' % rmspe_test)
 		except KeyError:
 			pass
 
@@ -69,9 +83,16 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
 			results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
 		except AttributeError:
 			results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test}
+			
+
 	return results, train_error/i, test_error/i
 
-def selectFeatures(feature_selector, x_train, y_train, x_test, complete_dataset):
+def selectFeatures(feature_selector, x_train, y_train, x_test, x, complete_dataset):
+	
+	# Monkey patching the scikit installation to avoid some divide-by-zero warnings
+	# The warning seems harmless in this specific case
+	# https://github.com/scikit-learn/scikit-learn/commit/dfe9fc79acf853007ce94b1dd54a7c07cbd6ac7c
+	# https://github.com/scikit-learn/scikit-learn/issues/11395
 
 	x_train = feature_selector.fit_transform(x_train, y_train)
 	x_test = feature_selector.transform(x_test)
@@ -85,17 +106,20 @@ def selectFeatures(feature_selector, x_train, y_train, x_test, complete_dataset)
 
 	return x_train, x_test, x, complete_dataset
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None):
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
 
 	# Remove entries with outlier values on the preco column
 	if remove_outliers:
-		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (2*train_dataset.preco.std())]
+		train_dataset = train_dataset[np.abs(train_dataset.preco - train_dataset.preco.mean()) <= (3*train_dataset.preco.std())]
 
 	# output data
-	y = train_dataset['preco'].values
+	if (log_correct_preco):
+		y = np.log1p(train_dataset['preco'].values)
+	else:
+		y = train_dataset('preco').values
 
 	# Remove columns not used in training
 	train_dataset.drop(['preco'], axis=1, inplace=True)
