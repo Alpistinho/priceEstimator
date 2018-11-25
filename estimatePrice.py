@@ -51,18 +51,21 @@ if __name__ == '__main__':
 	# x_test = polyFeat.transform(x_test)
 	# print(x_train.shape)
 	
-	lr_ridge = RandomForestRegressor(n_estimators=5)
-	rfecv = RFECV(estimator=lr_ridge, step=1, cv=KFold())
+	# regressor = Ridge(alpha=10000)
+	# regressor = svm.SVR(gamma='scale')
+	regressor = RandomForestRegressor(n_estimators=10)
+	# regressor = BayesianRidge(n_iter=300, lambda_1=1, lambda_2=1)
+	rfecv = RFECV(estimator=regressor, step=1, cv=KFold())
 	x_train = rfecv.fit_transform(x_train, y_train)
 	x_test = rfecv.transform(x_test)
 	print("Optimal number of features : %d" % rfecv.n_features_)
 
-	# # Plot number of features VS. cross-validation scores
-	# plt.figure()
-	# plt.xlabel("Number of features selected")
-	# plt.ylabel("Cross validation score (nb of correct classifications)")
-	# plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
-	# plt.show()
+	# Plot number of features VS. cross-validation scores
+	plt.figure()
+	plt.xlabel("Number of features selected")
+	plt.ylabel("Cross validation score (nb of correct classifications)")
+	plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+	plt.show()
 
 	# scaler = StandardScaler()
 	# print(x_train[:10,3:5])
@@ -73,22 +76,10 @@ if __name__ == '__main__':
 	# analysisPlotter.plotHistogram(scaler.transform(x_train[:,3:5])[:,0])
 	# plt.show()
 
-	# regressor = Ridge(alpha=10000)
-	# regressor = svm.SVR(gamma='scale')
-	regressor = RandomForestRegressor(n_estimators=30)
-	# regressor = BayesianRidge(n_iter=300, lambda_1=1, lambda_2=1)
 	regressor.fit(x_train, y_train)
 	y_pred_train = regressor.predict(x_train)
 	y_pred_test_ridge = regressor.predict(x_test)
 
-	# analysisPlotter.plotAscending(np.arange(y_train, y_train))
-	order = y_train.argsort()
-	#plt.plot(np.arange(y_train.shape[0]), y_train[order], np.arange(y_train.shape[0]), y_pred_train[order])
-
-	percents = np.square((y_pred_train[order] - y_train[order])/y_train[order])
-
-	fig1, ax1 = plt.subplots()
-	ax1.plot(y_train[order],percents[order],'*')
 
 	rmspe_train, errors_train = rmspe(y_train, y_pred_train)
 	
@@ -118,20 +109,5 @@ if __name__ == '__main__':
 		print('kFold cross validation with {} folds'.format(10))
 		print(train_error, test_error)
 
-	# analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
-	# analysisPlotter.plotAscending(x_train[:,75], y_pred_train)
 	analysisPlotter.plotAscending(y_train, np.array(errors_train))
 	plt.show()
-
-	# values = []
-	# for alpha in np.logspace(0, 4, num = 25):
-	# 	regressor = Ridge(alpha=alpha)
-	# 	regressor.fit(x_train, y_train)
-	# 	y_pred_train = regressor.predict(x_train)
-	# 	y_pred_test_ridge = regressor.predict(x_test)
-	# 	_, train_error, test_error = kFoldCrossValidation(x,y,linearRegressor,splits=10)
-	# 	values.append([alpha, train_error, test_error])
-
-	# values = np.array(values)
-	# plt.plot(values[:,0], values[:,1],values[:,0], values[:,2])
-	# plt.show()
