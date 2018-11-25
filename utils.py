@@ -6,7 +6,7 @@ from sklearn.feature_selection import SelectKBest, f_regression, VarianceThresho
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 import matplotlib.pyplot as plt
 
-def outputResult(outfile, results, log_correct_precos=True):
+def outputResult(outfile, results, log_correct_precos=True, round=False):
 
 	with open(outfile , 'w') as f:
 		f.write('Id,preco\n')
@@ -15,6 +15,8 @@ def outputResult(outfile, results, log_correct_precos=True):
 		for result in results:
 			if log_correct_precos:
 				result = np.expm1(result)
+			
+			result = np.round(result,-4)
 			lines.append(','.join([str(Id), str(result)]) + '\n')
 			Id += 1
 		f.writelines(lines)
@@ -50,8 +52,7 @@ def printResults(results, print_coefs=False):
 		print('\nDesempenho no conjunto de treinamento: RMPSE = %.3f' % rmspe_train)
 		try:
 			rmspe_test = results[key]['rmspe_test']
-			print('\nDesempenho no conjunto de teste:')
-			print('RMSPE = %.3f' % rmspe_test)
+			print('\nDesempenho no conjunto de teste: RMSPE = %.3f' % rmspe_test)
 		except KeyError:
 			pass
 
@@ -106,9 +107,8 @@ def selectFeatures(feature_selector, x_train, y_train, x_test, x, complete_datas
 
 	return x_train, x_test, x, complete_dataset
 
-def encodeCategory(dataset, column, encoding='one_hot_encoding'):
+def encodeCategory(dataset, column, encoding='one_hot_encoding', columnCategories=None):
 	if encoding == 'one_hot_encoding':
-		columnCategories = dataset[column].unique()
 		dataset[column] = dataset[column].astype(pd.api.types.CategoricalDtype(categories=columnCategories))
 	elif encoding == 'label_encoding':
 		le = LabelEncoder()
@@ -119,7 +119,7 @@ def encodeCategory(dataset, column, encoding='one_hot_encoding'):
 
 	return dataset
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True, bairro_encoding='label_encoding'):
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True, bairro_encoding='one_hot_encoding'):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
@@ -136,10 +136,12 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 
 	# Remove columns not used in training
 	train_dataset.drop(['preco'], axis=1, inplace=True)
+	# train_dataset.drop(['bairro'], axis=1, inplace=True)
 	
 	if test_dataset is None:
 		complete_dataset = train_dataset
 	else:
+		# test_dataset.drop(['bairro'], axis=1, inplace=True)
 		test_dataset = test_dataset.loc[:, test_dataset.columns != 'diferenciais']
 		complete_dataset = train_dataset.append(test_dataset)
 		
@@ -151,27 +153,23 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 	complete_dataset['tipo'] = complete_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
 	complete_dataset['tipo_vendedor'] = complete_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 
-	complete_dataset = encodeCategory(complete_dataset, 'bairro', encoding=bairro_encoding)
+	complete_dataset = encodeCategory(complete_dataset, 'bairro', encoding=bairro_encoding, columnCategories=bairroCategories)
 	
-
-	# complete_dataset['bairro'] = complete_dataset['bairro'].astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
-
-
 	# Do one hot encoding on the categorical columns
 	complete_dataset = pd.get_dummies(complete_dataset)
 
 	if test_dataset is None:
 		train_dataset['tipo'] = train_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
-		# train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+		train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 		train_dataset['tipo_vendedor'] = train_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 		
-		train_dataset = encodeCategory(train_dataset, 'bairro', encoding=bairro_encoding)
+		# train_dataset = encodeCategory(train_dataset, 'bairro', encoding=bairro_encoding, columnCategories=bairroCategories)
 
 		# Do one hot encoding on the categorical columns
 		train_dataset = pd.get_dummies(train_dataset)
 		
 		# input data
-		x = train_dataset.loc[:, complete_dataset.columns != 'Id'].values
+		x = train_dataset.loc[:, train_dataset.columns != 'Id'].values
 
 		x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.9)
 		
@@ -184,28 +182,29 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 		# test_dataset['bairro'] = test_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 		test_dataset['tipo_vendedor'] = test_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 
-		train_dataset = encodeCategory(train_dataset, 'bairro', encoding=bairro_encoding)
-		test_dataset = encodeCategory(test_dataset, 'bairro', encoding=bairro_encoding)
+		train_dataset = encodeCategory(train_dataset, 'bairro', encoding=bairro_encoding, columnCategories=bairroCategories)
+		test_dataset = encodeCategory(test_dataset, 'bairro', encoding=bairro_encoding, columnCategories=bairroCategories)
 
 		# Do one hot encoding on the categorical columns
 		train_dataset = pd.get_dummies(train_dataset)
 		test_dataset = pd.get_dummies(test_dataset)
 
 		# input data
-		x_train = train_dataset.iloc[:,1:]
-		x_test = test_dataset.iloc[:,1:]
+		x_train = train_dataset.loc[:, train_dataset.columns != 'Id']
+		x_test = test_dataset.loc[:, test_dataset.columns != 'Id']
 		x = x_train
 
 		y_train = y
 
 	if minimum_variance is not None:
 		varianceThereshold = VarianceThreshold(threshold=minimum_variance)
-		x_train, x_test, x, complete_dataset = selectFeatures(varianceThereshold, x_train, y_train, x_test, complete_dataset)
+		x_train, x_test, x, complete_dataset = selectFeatures(varianceThereshold, x_train, y_train, x_test, x, complete_dataset)
 	if k_features is not None:
 		selectKBest = SelectKBest(score_func=f_regression, k=k_features)
-		x_train, x_test, x, complete_dataset = selectFeatures(selectKBest, x_train, y_train, x_test, complete_dataset)
+		x_train, x_test, x, complete_dataset = selectFeatures(selectKBest, x_train, y_train, x_test, x, complete_dataset)
 
 	try:
 		return x, y, x_train, x_test, y_train, y_test, complete_dataset
 	except UnboundLocalError:
+		print(x_train.shape, x_test.shape)
 		return x_train, x_test, y, complete_dataset
