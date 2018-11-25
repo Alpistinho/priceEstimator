@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
-from sklearn.feature_selection import SelectKBest, f_regression, VarianceThreshold
+from sklearn.feature_selection import SelectKBest, f_regression, VarianceThreshold, RFE
 
 def outputResult(outfile, results):
 
@@ -65,11 +65,13 @@ def kFoldCrossValidation(x, y, predictor, splits = 10):
 		test_error += rmspe_test
 		
 		i = i + 1
-		results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
-
+		try:
+			results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test, 'coef': predictor.coef_}
+		except AttributeError:
+			results['Fold {}'.format(i)] = {'rmspe_train': rmspe_train, 'rmspe_test': rmspe_test}
 	return results, train_error/i, test_error/i
 
-def selectFeatures(feature_selector, x_train, y_train, x_test, x, complete_dataset):
+def selectFeatures(feature_selector, x_train, y_train, x_test, complete_dataset):
 
 	x_train = feature_selector.fit_transform(x_train, y_train)
 	x_test = feature_selector.transform(x_test)
@@ -125,7 +127,7 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 		train_dataset = pd.get_dummies(train_dataset)
 		
 		# input data
-		x = train_dataset.iloc[:, 1:].values
+		x = train_dataset.loc[:, complete_dataset.columns != 'Id'].values
 
 		x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.9)
 		
@@ -145,15 +147,16 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 		# input data
 		x_train = train_dataset.iloc[:,1:]
 		x_test = test_dataset.iloc[:,1:]
+		x = x_train
 
 		y_train = y
 
 	if minimum_variance is not None:
 		varianceThereshold = VarianceThreshold(threshold=minimum_variance)
-		x_train, x_test, x, complete_dataset = selectFeatures(varianceThereshold, x_train, y_train, x_test, x, complete_dataset)
+		x_train, x_test, x, complete_dataset = selectFeatures(varianceThereshold, x_train, y_train, x_test, complete_dataset)
 	if k_features is not None:
 		selectKBest = SelectKBest(score_func=f_regression, k=k_features)
-		x_train, x_test, x, complete_dataset = selectFeatures(selectKBest, x_train, y_train, x_test, x, complete_dataset)
+		x_train, x_test, x, complete_dataset = selectFeatures(selectKBest, x_train, y_train, x_test, complete_dataset)
 
 	try:
 		return x, y, x_train, x_test, y_train, y_test, complete_dataset
