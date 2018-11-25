@@ -119,7 +119,7 @@ def encodeCategory(dataset, column, encoding='one_hot_encoding'):
 
 	return dataset
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True, bairro_encoding='one_hot_encoding'):
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True, bairro_encoding='label_encoding'):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
@@ -151,10 +151,10 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 	complete_dataset['tipo'] = complete_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
 	complete_dataset['tipo_vendedor'] = complete_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 
-	# complete_dataset2 = encodeCategory(complete_dataset, 'bairro', encoding='one_hot_encoding')
+	complete_dataset = encodeCategory(complete_dataset, 'bairro', encoding=bairro_encoding)
 	
 
-	complete_dataset['bairro'] = complete_dataset['bairro'].astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+	# complete_dataset['bairro'] = complete_dataset['bairro'].astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 
 
 	# Do one hot encoding on the categorical columns
@@ -162,9 +162,11 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 
 	if test_dataset is None:
 		train_dataset['tipo'] = train_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
-		train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+		# train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 		train_dataset['tipo_vendedor'] = train_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 		
+		train_dataset = encodeCategory(train_dataset, 'bairro', encoding=bairro_encoding)
+
 		# Do one hot encoding on the categorical columns
 		train_dataset = pd.get_dummies(train_dataset)
 		
@@ -175,12 +177,15 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 		
 	else:
 		train_dataset['tipo'] = train_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
-		train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+		# train_dataset['bairro'] = train_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 		train_dataset['tipo_vendedor'] = train_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
 
 		test_dataset['tipo'] = test_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
-		test_dataset['bairro'] = test_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+		# test_dataset['bairro'] = test_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 		test_dataset['tipo_vendedor'] = test_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
+
+		train_dataset = encodeCategory(train_dataset, 'bairro', encoding=bairro_encoding)
+		test_dataset = encodeCategory(test_dataset, 'bairro', encoding=bairro_encoding)
 
 		# Do one hot encoding on the categorical columns
 		train_dataset = pd.get_dummies(train_dataset)
