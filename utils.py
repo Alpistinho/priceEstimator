@@ -3,7 +3,7 @@ import pandas as pd
 
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.feature_selection import SelectKBest, f_regression, VarianceThreshold, RFE
-
+from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 import matplotlib.pyplot as plt
 
 def outputResult(outfile, results, log_correct_precos=True):
@@ -106,7 +106,20 @@ def selectFeatures(feature_selector, x_train, y_train, x_test, x, complete_datas
 
 	return x_train, x_test, x, complete_dataset
 
-def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True):
+def encodeCategory(dataset, column, encoding='one_hot_encoding'):
+	if encoding == 'one_hot_encoding':
+		columnCategories = dataset[column].unique()
+		dataset[column] = dataset[column].astype(pd.api.types.CategoricalDtype(categories=columnCategories))
+	elif encoding == 'label_encoding':
+		le = LabelEncoder()
+		dataset[column] = le.fit_transform(dataset[column])
+	elif encoding == 'binary_encoding':
+		le = LabelEncoder()
+		column = le.fit_transform(column)
+
+	return dataset
+
+def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_features=None, minimum_variance=None, log_correct_preco=True, bairro_encoding='one_hot_encoding'):
 	pd.options.mode.chained_assignment = None
 
 	train_dataset = train_dataset.loc[:, train_dataset.columns != 'diferenciais']
@@ -136,8 +149,13 @@ def setDatasets(train_dataset, test_dataset=None, remove_outliers=True, k_featur
 	tipoVendedorCategories = complete_dataset.tipo_vendedor.unique()
 
 	complete_dataset['tipo'] = complete_dataset.tipo.astype(pd.api.types.CategoricalDtype(categories=tipoCategories))
-	complete_dataset['bairro'] = complete_dataset.bairro.astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
 	complete_dataset['tipo_vendedor'] = complete_dataset.tipo_vendedor.astype(pd.api.types.CategoricalDtype(categories=tipoVendedorCategories))
+
+	# complete_dataset2 = encodeCategory(complete_dataset, 'bairro', encoding='one_hot_encoding')
+	
+
+	complete_dataset['bairro'] = complete_dataset['bairro'].astype(pd.api.types.CategoricalDtype(categories=bairroCategories))
+
 
 	# Do one hot encoding on the categorical columns
 	complete_dataset = pd.get_dummies(complete_dataset)
