@@ -6,23 +6,25 @@ from matplotlib import pyplot as plt
 
 from scipy import stats
 from sklearn import svm, tree
-from sklearn.linear_model import LinearRegression, Ridge, RidgeCV, BayesianRidge
-from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
+from sklearn.linear_model import LinearRegression, Ridge, RidgeCV, BayesianRidge, RANSACRegressor
+from sklearn.model_selection import KFold, KFold, train_test_split
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.feature_selection import RFECV
+
 
 import analysisPlotter
 from utils import *
 
 
-k_features = 20
+k_features = None
 
 if __name__ == '__main__':
 	print(sys.argv)
 	if len(sys.argv) == 1: 
 		print('Using default dataset')
 		dataset = pd.read_csv('data/train.csv')
-		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=20, minimum_variance=None)
+		x, y, x_train, x_test, y_train, y_test, filtered_dataset = setDatasets(dataset, k_features=k_features, minimum_variance=None)
 	elif len(sys.argv) == 2: 
 		print('Using dataset {}'.format(sys.argv[1]))
 		dataset = pd.read_csv(sys.argv[1])
@@ -38,8 +40,25 @@ if __name__ == '__main__':
 		exit()
 
 	print('Using {} features from dataset'.format(filtered_dataset.columns))
-	# polyFeat = PolynomialFeatures(degree=3)
-	# xPoly = polyFeat.fit_transform(x.toarray())
+
+	# print(x_train.shape)
+	# polyFeat = PolynomialFeatures(degree=2)
+	# x_train = polyFeat.fit_transform(x_train)
+	# x_test = polyFeat.transform(x_test)
+	# print(x_train.shape)
+	
+	lr_ridge = RandomForestRegressor(n_estimators=5)
+	rfecv = RFECV(estimator=lr_ridge, step=1, cv=KFold())
+	x_train = rfecv.fit_transform(x_train, y_train)
+	x_test = rfecv.transform(x_test)
+	print("Optimal number of features : %d" % rfecv.n_features_)
+
+	# # Plot number of features VS. cross-validation scores
+	# plt.figure()
+	# plt.xlabel("Number of features selected")
+	# plt.ylabel("Cross validation score (nb of correct classifications)")
+	# plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+	# plt.show()
 
 	# scaler = StandardScaler()
 	# print(x_train[:10,3:5])
@@ -51,16 +70,14 @@ if __name__ == '__main__':
 	# plt.show()
 
 	linearRegressor = LinearRegression()
-	
-	
-
 	linearRegressor.fit(x_train, y_train)
 	y_pred_train = linearRegressor.predict(x_train)
 	y_pred_test = linearRegressor.predict(x_test)
 
 	# lr_ridge = Ridge(alpha=10000)
 	# lr_ridge = svm.SVR(gamma='scale')
-	lr_ridge = RandomForestRegressor()
+	lr_ridge = RandomForestRegressor(n_estimators=100)
+	# lr_ridge = GradientBoostingRegressor()
 	# lr_ridge = BayesianRidge(n_iter=300, lambda_1=1, lambda_2=1)
 	lr_ridge.fit(x_train, y_train)
 	y_pred_train_ridge = lr_ridge.predict(x_train)
